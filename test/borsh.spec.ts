@@ -1,4 +1,6 @@
-import { borshSerialize, borshDeserialize, BorshSchema, Unit } from '../src';
+import { expect, test } from 'vitest';
+
+import { BorshSchema, type Unit, borshDeserialize, borshSerialize } from '../src';
 
 test('u8', () => {
   const schema = BorshSchema.u8;
