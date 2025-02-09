@@ -32,13 +32,7 @@ export class BorshSchema<T> {
     return new BorshSchema({ array: { type: inner.schema, len: length } });
   }
 
-  static Vec<T extends BorshSchema<unknown>>(
-    inner: T,
-  ): T extends typeof BorshSchema.u8 ? BorshSchema<Uint8Array> : BorshSchema<SchemaType<T>[]>;
-  static Vec<T extends BorshSchema<unknown>>(inner: T) {
-    if (inner === BorshSchema.u8) {
-      return new BorshSchema<Uint8Array>({ array: { type: 'u8' } });
-    }
+  static Vec<T extends BorshSchema<unknown>>(inner: T): BorshSchema<SchemaType<T>[]> {
     return new BorshSchema({ array: { type: inner.schema } });
   }
 
