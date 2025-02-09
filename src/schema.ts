@@ -1,9 +1,9 @@
 import { type Schema, deserialize, serialize } from 'borsh';
 
-type SchemaType<T> = T extends BorshSchema<infer U> ? U : unknown;
+export type TypeOf<T extends BorshSchema<unknown>> = T extends BorshSchema<infer U> ? U : never;
 
 export class BorshSchema<T> {
-  private constructor(private schema: Schema) {}
+  private constructor(private readonly schema: Schema) {}
 
   static readonly String = new BorshSchema<string>('string');
   static readonly u8 = new BorshSchema<number>('u8');
@@ -21,35 +21,32 @@ export class BorshSchema<T> {
   static readonly bool = new BorshSchema<boolean>('bool');
   static readonly Unit = new BorshSchema<Unit>({ struct: {} });
 
-  static Option<T extends BorshSchema<unknown>>(inner: T): BorshSchema<SchemaType<T> | null> {
+  static Option<T extends BorshSchema<unknown>>(inner: T): BorshSchema<TypeOf<T> | null> {
     return new BorshSchema({ option: inner.schema });
   }
 
-  static Array<T extends BorshSchema<unknown>>(
-    inner: T,
-    length: number,
-  ): BorshSchema<SchemaType<T>[]> {
+  static Array<T extends BorshSchema<unknown>>(inner: T, length: number): BorshSchema<TypeOf<T>[]> {
     return new BorshSchema({ array: { type: inner.schema, len: length } });
   }
 
-  static Vec<T extends BorshSchema<unknown>>(inner: T): BorshSchema<SchemaType<T>[]> {
+  static Vec<T extends BorshSchema<unknown>>(inner: T): BorshSchema<TypeOf<T>[]> {
     return new BorshSchema({ array: { type: inner.schema } });
   }
 
-  static HashSet<T extends BorshSchema<unknown>>(inner: T): BorshSchema<Set<SchemaType<T>>> {
+  static HashSet<T extends BorshSchema<unknown>>(inner: T): BorshSchema<Set<TypeOf<T>>> {
     return new BorshSchema({ set: inner.schema });
   }
 
   static HashMap<K extends BorshSchema<unknown>, V extends BorshSchema<unknown>>(
     key: K,
     value: V,
-  ): BorshSchema<Map<SchemaType<K>, SchemaType<V>>> {
+  ): BorshSchema<Map<TypeOf<K>, TypeOf<V>>> {
     return new BorshSchema({ map: { key: key.schema, value: value.schema } });
   }
 
   static Struct<T extends Record<string, BorshSchema<unknown>>>(
     fields: T,
-  ): BorshSchema<{ [K in keyof T]: SchemaType<T[K]> }> {
+  ): BorshSchema<{ [K in keyof T]: TypeOf<T[K]> }> {
     return new BorshSchema({
       struct: Object.fromEntries(
         Object.entries(fields).map(([key, schema]) => [key, schema.schema]),
@@ -59,10 +56,10 @@ export class BorshSchema<T> {
 
   static Enum<T extends Record<string, BorshSchema<unknown>>>(
     variants: T,
-  ): BorshSchema<EnumInput<T>> {
+  ): BorshSchema<EnumVariant<T>> {
     return new BorshSchema({
-      enum: Object.entries(variants).map(([variantName, schema]) => ({
-        struct: { [variantName]: schema.schema },
+      enum: Object.entries(variants).map(([name, schema]) => ({
+        struct: { [name]: schema.schema },
       })),
     });
   }
@@ -76,19 +73,10 @@ export class BorshSchema<T> {
   }
 }
 
-export type StructInput<T extends Record<string, BorshSchema<unknown>>> = {
-  [K in keyof T]: SchemaType<T[K]>;
-};
-
-export type EnumInput<T extends Record<string, BorshSchema<unknown>>> = {
-  [K in keyof T]: {
-    [KK in K]: SchemaType<T[K]>;
-  };
-}[keyof T];
-
-export type TypeOf<T extends BorshSchema<unknown>> = SchemaType<T>;
-
 export type Unit = Record<string, never>;
-export type StructFields = Record<string, BorshSchema<unknown>>;
-export type EnumVariants = Record<string, BorshSchema<unknown>>;
+
+/** Helper type for enum variant discrimination */
+export type EnumVariant<T extends Record<string, BorshSchema<unknown>>> = {
+  [K in keyof T]: { [KK in K]: TypeOf<T[K]> };
+}[keyof T];
 export type { TypeOf as infer };
