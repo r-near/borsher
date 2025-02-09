@@ -1,24 +1,24 @@
 # Borsher
 
-A TypeScript-first [Borsh](https://borsh.io) serialization library with automatic type inference.
+A TypeScript-first [Borsh](https://borsh.io) serialization library with automatic type inference, featuring a Zod-like API.
 
 ## Features
 
 - 🎯 **Type-safe**: Full TypeScript support with automatic type inference
-- 🔧 **Flexible**: Zod-like interface for schema definition
-- 🚀 **Simple**: Wraps [Borsh JS](https://github.com/near/borsh-js) with an intuitive API
+- 🔧 **Flexible**: Zod-inspired schema builder with an intuitive API
+- 🚀 **Simple**: Wraps [Borsh JS](https://github.com/near/borsh-js) with a modern interface
 - 💪 **Robust**: Handles complex data structures including enums, maps, and nested types
 
 ## Quick Start
 
 ```ts
-import { BorshSchema } from "borsher";
+import { b } from "borsher";
 
 // Define your schema with automatic type inference
-const userSchema = BorshSchema.Struct({
-  name: BorshSchema.String,
-  age: BorshSchema.u8,
-  balance: BorshSchema.u128,
+const userSchema = b.Struct({
+  name: b.string(),
+  age: b.u8(),
+  balance: b.u128(),
 });
 
 // TypeScript automatically infers input types!
@@ -44,12 +44,12 @@ pnpm add borsher
 Borsher provides automatic type inference through its Zod-like interface. When you use any of the serialization functions with a schema, TypeScript automatically hints the expected types!
 
 ```ts
-import { BorshSchema, infer } from "borsher";
+import { b } from "borsher";
 
 // Define your schema
-const userSchema = BorshSchema.Struct({
-  name: BorshSchema.String,
-  balances: BorshSchema.HashMap(BorshSchema.String, BorshSchema.u128),
+const userSchema = b.Struct({
+  name: b.string(),
+  balances: b.HashMap(b.string(), b.u128()),
 });
 
 // Input types are automatically inferred when using schema.serialize()
@@ -66,8 +66,8 @@ userSchema.serialize(user); // Type-checked at compile time!
 const decoded = userSchema.deserialize(buffer);
 decoded.balances.get("sol");
 
-// You can also explicitly get the types using infer
-type User = infer<typeof userSchema>;
+// You can also explicitly get the types using b.infer
+type User = b.infer<typeof userSchema>;
 //   ^? { name: string; balances: Map<string, string | bigint> }
 ```
 
@@ -82,19 +82,21 @@ type User = infer<typeof userSchema>;
 - Floating point: `f32`, `f64`
 
 ```ts
+const schema = b.u8();
 const n: number = 100;
-const buffer = borshSerialize(BorshSchema.u8, n);
+const buffer = schema.serialize(n);
 ```
 
 #### Other Primitives
 
 - `bool`: Boolean values
-- `String`: UTF-8 encoded strings
-- `Unit`: Empty type (similar to void)
+- `string`: UTF-8 encoded strings
+- `unit`: Empty type (similar to void)
 
 ```ts
+const schema = b.string();
 const message = "hello world";
-const buffer = borshSerialize(BorshSchema.String, message);
+const buffer = schema.serialize(message);
 ```
 
 ### Complex Types
@@ -102,9 +104,9 @@ const buffer = borshSerialize(BorshSchema.String, message);
 #### Option (Nullable Types)
 
 ```ts
-const schema = BorshSchema.Option(BorshSchema.String);
+const schema = b.Option(b.string());
 const value: string | null = "hello world";
-const buffer = borshSerialize(schema, value);
+const buffer = schema.serialize(value);
 ```
 
 #### Collections
@@ -116,20 +118,20 @@ const buffer = borshSerialize(schema, value);
 
 ```ts
 // HashMap example
-const schema = BorshSchema.HashMap(BorshSchema.String, BorshSchema.u128);
+const schema = b.HashMap(b.string(), b.u128());
 const balances = new Map([
   ["alice", 1000000n],
   ["bob", 2000000n],
 ]);
-const buffer = borshSerialize(schema, balances);
+const buffer = schema.serialize(balances);
 ```
 
 #### Struct
 
 ```ts
-const personSchema = BorshSchema.Struct({
-  name: BorshSchema.String,
-  age: BorshSchema.u8,
+const personSchema = b.Struct({
+  name: b.string(),
+  age: b.u8(),
 });
 
 const person = {
@@ -137,7 +139,7 @@ const person = {
   age: 18,
 };
 
-const buffer = borshSerialize(personSchema, person);
+const buffer = personSchema.serialize(person);
 ```
 
 #### Enum
@@ -146,17 +148,17 @@ Supports both simple enums and enums with associated data:
 
 ```ts
 // Simple enum
-const statusSchema = BorshSchema.Enum({
-  Pending: BorshSchema.Unit,
-  Fulfilled: BorshSchema.Unit,
-  Rejected: BorshSchema.Unit,
+const statusSchema = b.Enum({
+  Pending: b.unit(),
+  Fulfilled: b.unit(),
+  Rejected: b.unit(),
 });
 
 // Enum with associated data
-const shapeSchema = BorshSchema.Enum({
-  Square: BorshSchema.u32,
-  Circle: BorshSchema.Struct({
-    radius: BorshSchema.u32,
+const shapeSchema = b.Enum({
+  Square: b.u32(),
+  Circle: b.Struct({
+    radius: b.u32(),
   }),
 });
 ```
@@ -167,20 +169,20 @@ For more complex examples and advanced usage, check out our test files or the ex
 
 ```ts
 // Complex nested structure example
-const gameStateSchema = BorshSchema.Struct({
-  players: BorshSchema.Vec(
-    BorshSchema.Struct({
-      id: BorshSchema.String,
-      score: BorshSchema.u32,
-      inventory: BorshSchema.HashMap(BorshSchema.String, BorshSchema.u16),
+const gameStateSchema = b.Struct({
+  players: b.Vec(
+    b.Struct({
+      id: b.string(),
+      score: b.u32(),
+      inventory: b.HashMap(b.string(), b.u16()),
     })
   ),
-  status: BorshSchema.Enum({
-    Playing: BorshSchema.Unit,
-    Paused: BorshSchema.Unit,
-    GameOver: BorshSchema.Struct({
-      winner: BorshSchema.String,
-      finalScore: BorshSchema.u32,
+  status: b.Enum({
+    Playing: b.unit(),
+    Paused: b.unit(),
+    GameOver: b.Struct({
+      winner: b.string(),
+      finalScore: b.u32(),
     }),
   }),
 });
@@ -188,12 +190,38 @@ const gameStateSchema = BorshSchema.Struct({
 
 ## Legacy API
 
-For compatibility with existing code, Borsher also provides standalone serialization functions. These maintain the same type safety as the schema methods:
+Borsher maintains compatibility with existing code in two ways:
+
+### Classic BorshSchema Syntax
+
+You can still use the classic `BorshSchema` syntax if you prefer:
+
+```ts
+import { BorshSchema } from "borsher";
+
+// Classic syntax still works
+const userSchema = BorshSchema.Struct({
+  name: BorshSchema.String,
+  age: BorshSchema.u8,
+  balance: BorshSchema.u128,
+});
+
+// Complex types work the same way
+const mapSchema = BorshSchema.HashMap(BorshSchema.String, BorshSchema.u128);
+const enumSchema = BorshSchema.Enum({
+  Success: BorshSchema.Unit,
+  Error: BorshSchema.String,
+});
+```
+
+### Standalone Serialization Functions
+
+For compatibility with existing code, Borsher also provides standalone serialization functions:
 
 ```ts
 import { borshSerialize, borshDeserialize } from "borsher";
 
-// These functions are type-safe but schema.serialize() is preferred
+// These functions are type-safe but schema methods are preferred
 const buffer = borshSerialize(userSchema, user);
 const decoded = borshDeserialize(userSchema, buffer);
 ```
