@@ -135,7 +135,7 @@ export class BorshSchema<T, Tag extends string = never> {
     })
   }
 
-  static Enum<T extends Record<string, BorshSchema<unknown>>>(
+  static Enum<T extends Record<string, BorshSchema<unknown, string>>>(
     variants: T,
   ): BorshSchema<EnumVariant<T>> {
     return new BorshSchema({
@@ -176,7 +176,7 @@ export type StructInput<T extends Record<string, BorshSchema<unknown>>> = {
 /**
  * Helper type for enum variant discrimination.
  */
-export type EnumVariant<T extends Record<string, BorshSchema<unknown>>> = {
+export type EnumVariant<T extends Record<string, BorshSchema<unknown, string>>> = {
   [K in keyof T]: {
     [KK in K]: TypeOf<T[K]>
   }
