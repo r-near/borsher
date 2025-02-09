@@ -25,7 +25,7 @@ const userSchema = BorshSchema.Struct({
 const user = {
   name: "Alice",
   age: 25,
-  balance: "1000000", // Flexible input: accepts string/number for bigint
+  balance: 1000000n,
 };
 
 // Type-safe serialization and deserialization
@@ -44,7 +44,7 @@ pnpm add borsher
 Borsher provides automatic type inference through its Zod-like interface. When you use any of the serialization functions with a schema, TypeScript automatically hints the expected types!
 
 ```ts
-import { BorshSchema, InferInput, InferOutput } from "borsher";
+import { BorshSchema, infer } from "borsher";
 
 // Define your schema
 const userSchema = BorshSchema.Struct({
@@ -56,35 +56,19 @@ const userSchema = BorshSchema.Struct({
 const user = {
   name: "alice",
   balances: new Map([
-    ["sol", "1000000"], // Can use string for convenience
-    //["eth", 2000000n], // Or native bigint
+    ["sol", 1000000n],
+    ["eth", 2000000n],
   ]),
 };
 userSchema.serialize(user); // Type-checked at compile time!
 
 // Output types are automatically inferred when using schema.deserialize()
 const decoded = userSchema.deserialize(buffer);
-decoded.balances.get("sol"); // Always bigint after deserialization
+decoded.balances.get("sol");
 
-// You can also explicitly get the types using InferInput/InferOutput
-type UserInput = InferInput<typeof userSchema>;
+// You can also explicitly get the types using infer
+type User = infer<typeof userSchema>;
 //   ^? { name: string; balances: Map<string, string | bigint> }
-
-type UserOutput = InferOutput<typeof userSchema>;
-//   ^? { name: string; balances: Map<string, bigint> }
-```
-
-Here's a simpler example showing the input/output type difference:
-
-```ts
-const schema = BorshSchema.u128;
-
-const value = "1000000"; // Can use string
-// const value = 1000000; // Or number
-// const value = 1000000n; // Or bigint
-
-const buffer = schema.serialize(value);
-const decoded = schema.deserialize(buffer); // Always returns bigint
 ```
 
 ## Supported Types
