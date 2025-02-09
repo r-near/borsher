@@ -1,5 +1,5 @@
 import { BorshSchema } from "../src/schema"
-import { describe, expect, test, fail } from "vitest"
+import { describe, expect, test, assert } from "vitest"
 
 describe("Vec type serialization", () => {
   // Helper function to test serialization roundtrip
@@ -216,10 +216,10 @@ describe("Vec type serialization", () => {
       // Verify the Data variant contains a typed array
       const deserialized = schema.deserialize(schema.serialize(dataValue))
       console.log(deserialized)
-      if ('Data' in deserialized) {
+      if ("Data" in deserialized) {
         expect(deserialized.Data).toBeInstanceOf(Uint8Array)
       } else {
-        fail('Expected Data variant')
+        assert.fail("Expected Data variant")
       }
     })
 
@@ -245,9 +245,9 @@ describe("Vec type serialization", () => {
 
       // Verify each struct in the array has a typed array
       const deserialized = schema.deserialize(schema.serialize(value))
-      deserialized.forEach((player) => {
+      for (const player of deserialized) {
         expect(player.position).toBeInstanceOf(Float32Array)
-      })
+      }
     })
 
     test("complex nested structure with multiple typed arrays", () => {
@@ -280,15 +280,15 @@ describe("Vec type serialization", () => {
               timestamps: BorshSchema.Vec(BorshSchema.i64),
               badges: BorshSchema.HashMap(
                 BorshSchema.String,
-                BorshSchema.Vec(BorshSchema.u8) // badge data
+                BorshSchema.Vec(BorshSchema.u8), // badge data
               ),
             }),
-          })
+          }),
         ),
         worldData: BorshSchema.Struct({
           chunks: BorshSchema.HashMap(
             BorshSchema.String, // chunk coordinates
-            BorshSchema.Vec(BorshSchema.i16) // terrain height map
+            BorshSchema.Vec(BorshSchema.i16), // terrain height map
           ),
           entities: BorshSchema.Vec(BorshSchema.u32), // entity IDs
         }),
@@ -297,26 +297,29 @@ describe("Vec type serialization", () => {
       // Create a complex test value
       const testValue = {
         players: new Map([
-          ["player1", {
-            stats: {
-              health: 100,
-              position: createTypedArray(Float32Array, [1.5, 2.5, 3.5]),
-              velocity: createTypedArray(Float32Array, [0.1, 0.2, -0.3]),
+          [
+            "player1",
+            {
+              stats: {
+                health: 100,
+                position: createTypedArray(Float32Array, [1.5, 2.5, 3.5]),
+                velocity: createTypedArray(Float32Array, [0.1, 0.2, -0.3]),
+              },
+              inventory: [
+                { Weapon: { damage: 50, effects: createTypedArray(Int8Array, [1, -2, 3]) } },
+                { Armor: { defense: 30, resistances: createTypedArray(Uint8Array, [5, 10, 15]) } },
+                { Weapon: { damage: 75, effects: createTypedArray(Int8Array, [-1, 2, -3]) } },
+              ],
+              achievements: {
+                scores: createTypedArray(Uint32Array, [1000, 2000, 3000]),
+                timestamps: BigInt64Array.from([1000n, 2000n, 3000n]),
+                badges: new Map([
+                  ["gold", createTypedArray(Uint8Array, [1, 2, 3])],
+                  ["silver", createTypedArray(Uint8Array, [4, 5, 6])],
+                ]),
+              },
             },
-            inventory: [
-              { Weapon: { damage: 50, effects: createTypedArray(Int8Array, [1, -2, 3]) } },
-              { Armor: { defense: 30, resistances: createTypedArray(Uint8Array, [5, 10, 15]) } },
-              { Weapon: { damage: 75, effects: createTypedArray(Int8Array, [-1, 2, -3]) } },
-            ],
-            achievements: {
-              scores: createTypedArray(Uint32Array, [1000, 2000, 3000]),
-              timestamps: createTypedArray(BigInt64Array, [1000n, 2000n, 3000n]),
-              badges: new Map([
-                ["gold", createTypedArray(Uint8Array, [1, 2, 3])],
-                ["silver", createTypedArray(Uint8Array, [4, 5, 6])],
-              ]),
-            },
-          }],
+          ],
         ]),
         worldData: {
           chunks: new Map([
@@ -332,11 +335,15 @@ describe("Vec type serialization", () => {
 
       // Verify all typed arrays in the deserialized data
       const deserialized = gameStateSchema.deserialize(gameStateSchema.serialize(testValue))
-      
+
       // Check player data
       const player = deserialized.players.get("player1")
-      if (!player) fail("Expected player1 data")
-      
+      if (!player) {
+        assert.fail("Expected player1 data")
+        return
+      }
+      if (player === undefined) assert.fail("Expected player1 data")
+
       expect(player.stats.position).toBeInstanceOf(Float32Array)
       expect(player.stats.velocity).toBeInstanceOf(Float32Array)
 
@@ -345,17 +352,17 @@ describe("Vec type serialization", () => {
       if ("Weapon" in weapon1) {
         expect(weapon1.Weapon.effects).toBeInstanceOf(Int8Array)
       } else {
-        fail("Expected Weapon variant")
+        assert.fail("Expected Weapon variant")
       }
       if ("Armor" in armor) {
         expect(armor.Armor.resistances).toBeInstanceOf(Uint8Array)
       } else {
-        fail("Expected Armor variant")
+        assert.fail("Expected Armor variant")
       }
       if ("Weapon" in weapon2) {
         expect(weapon2.Weapon.effects).toBeInstanceOf(Int8Array)
       } else {
-        fail("Expected Weapon variant")
+        assert.fail("Expected Weapon variant")
       }
 
       // Check achievements

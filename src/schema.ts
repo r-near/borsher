@@ -1,4 +1,10 @@
-import { type Schema, deserialize as thirdPartyDeserialize, serialize } from "borsh"
+import {
+  type Schema,
+  deserialize as thirdPartyDeserialize,
+  serialize as thirdPartySerialize,
+} from "borsh"
+import { SchemaVisitor } from "./visitor"
+import type { TypedArrayType } from "./visitor"
 
 /**
  * Helper type to extract the inner type from a BorshSchema.
@@ -18,14 +24,16 @@ export class BorshSchema<T, Tag extends string = never> {
   private readonly schema: Schema
   // If set (for vector schemas), indicates that the plain array should be
   // converted into a typed array.
-  private readonly _typedArrayType?: string
+  private readonly _typedArrayType?: TypedArrayType
   // Keep track of type and tag explicitly to help TypeScript with type inference
   private readonly _type: T
   private readonly _tag: Tag
+  private readonly visitor: SchemaVisitor
 
-  private constructor(schema: Schema, typedArrayType?: string) {
+  private constructor(schema: Schema, typedArrayType?: TypedArrayType) {
     this.schema = schema
     this._typedArrayType = typedArrayType
+    this.visitor = new SchemaVisitor()
     // These are only used for type inference, values don't matter
     this._type = null as T
     this._tag = "" as Tag
@@ -80,12 +88,12 @@ export class BorshSchema<T, Tag extends string = never> {
   static Vec(inner: BorshSchema<number, "i8">): BorshSchema<Int8Array>
   static Vec(inner: BorshSchema<number, "i16">): BorshSchema<Int16Array>
   static Vec(inner: BorshSchema<number, "i32">): BorshSchema<Int32Array>
-  static Vec(inner: BorshSchema<number, "i64">): BorshSchema<Int64Array>
+  static Vec(inner: BorshSchema<bigint, "i64">): BorshSchema<BigInt64Array>
   static Vec(inner: BorshSchema<number, "f32">): BorshSchema<Float32Array>
   static Vec(inner: BorshSchema<number, "f64">): BorshSchema<Float64Array>
   static Vec<T>(inner: BorshSchema<T>): BorshSchema<T[]>
   static Vec(inner: BorshSchema<unknown, string> | BorshSchema<unknown>): BorshSchema<unknown> {
-    let typedArrayType: string | undefined
+    let typedArrayType: TypedArrayType | undefined
     if (typeof inner.schema === "string") {
       switch (inner.schema) {
         case "u8":
@@ -141,152 +149,23 @@ export class BorshSchema<T, Tag extends string = never> {
    * Serializes the given value into a Buffer.
    */
   serialize(value: T): Buffer {
-    return Buffer.from(serialize(this.schema, value))
+    return Buffer.from(thirdPartySerialize(this.schema, value))
   }
 
   /**
    * Deserializes the given buffer.
    *
    * First, the third-party deserializer decodes the buffer.
-   * If this schema was defined as a vector of a recognized numeric type
-   * (as indicated by _typedArrayType) and the result is a plain array,
-   * we convert that array into the corresponding typed array.
+   * Then, we visit each node in the schema tree to convert arrays
+   * into their appropriate typed arrays based on the schema definition.
    */
   deserialize(buffer: Uint8Array): T {
-    const result: unknown = thirdPartyDeserialize(this.schema, buffer)
-    return this.convertToTypedArrays(result, this.schema) as T
-  }
-
-  private convertToTypedArrays(value: unknown, schema: Schema): unknown {
-    // Handle null/undefined values
-    if (value == null) {
-      return value
-    }
-
-    // Handle array with _typedArrayType (Vec case)
-    if (Array.isArray(value) && this._typedArrayType !== undefined) {
-      switch (this._typedArrayType) {
-        case "u8":
-          return new Uint8Array(value)
-        case "u16":
-          return new Uint16Array(value)
-        case "u32":
-          return new Uint32Array(value)
-        case "i8":
-          return new Int8Array(value)
-        case "i16":
-          return new Int16Array(value)
-        case "i32":
-          return new Int32Array(value)
-        case "i64":
-          return new BigInt64Array(value)
-        case "f32":
-          return new Float32Array(value)
-        case "f64":
-          return new Float64Array(value)
-        default:
-          return value
-      }
-    }
-
-    // Handle struct type
-    if (
-      typeof schema === "object" &&
-      "struct" in schema &&
-      typeof value === "object" &&
-      value !== null
-    ) {
-      const result: Record<string, unknown> = {}
-      const structFields = schema.struct
-
-      for (const [key, fieldSchema] of Object.entries(structFields)) {
-        const fieldValue = (value as Record<string, unknown>)[key]
-        // Create a new BorshSchema instance for the field if it's an array type
-        if (
-          typeof fieldSchema === "object" &&
-          "array" in fieldSchema &&
-          !("len" in fieldSchema.array)
-        ) {
-          const innerType = fieldSchema.array.type
-          if (typeof innerType === "string") {
-            const tempSchema = new BorshSchema(fieldSchema, innerType)
-            result[key] = tempSchema.convertToTypedArrays(fieldValue, fieldSchema)
-          } else {
-            result[key] = this.convertToTypedArrays(fieldValue, fieldSchema)
-          }
-        } else {
-          result[key] = this.convertToTypedArrays(fieldValue, fieldSchema)
-        }
-      }
-      return result
-    }
-
-    // Handle array type (fixed-length arrays or other array types)
-    if (typeof schema === "object" && "array" in schema && Array.isArray(value)) {
-      return value.map((item) => this.convertToTypedArrays(item, schema.array.type))
-    }
-
-    // Handle map type
-    if (typeof schema === "object" && "map" in schema && value instanceof Map) {
-      const newMap = new Map()
-      const valueSchema = schema.map.value
-      // Create a temporary schema for Vec value types
-      let tempValueSchema: BorshSchema<unknown> | undefined
-      if (
-        typeof valueSchema === "object" &&
-        "array" in valueSchema &&
-        !("len" in valueSchema.array)
-      ) {
-        const innerType = valueSchema.array.type
-        if (typeof innerType === "string") {
-          tempValueSchema = new BorshSchema(valueSchema, innerType)
-        }
-      }
-
-      for (const [k, v] of value.entries()) {
-        const newKey = this.convertToTypedArrays(k, schema.map.key)
-        const newValue = tempValueSchema
-          ? tempValueSchema.convertToTypedArrays(v, valueSchema)
-          : this.convertToTypedArrays(v, schema.map.value)
-        newMap.set(newKey, newValue)
-      }
-      return newMap
-    }
-
-    // Handle enum type
-    if (
-      typeof schema === "object" &&
-      "enum" in schema &&
-      typeof value === "object" &&
-      value !== null
-    ) {
-      const entries = Object.entries(value)[0]
-      if (entries) {
-        const [variantName, variantValue] = entries
-        // Find the variant's schema
-        const variantStruct = schema.enum.find((v) => variantName in v.struct)
-        if (variantStruct) {
-          // For Vec types, we need to create a new BorshSchema with the appropriate typedArrayType
-          const variantSchema = variantStruct.struct[variantName]
-          if (
-            typeof variantSchema === "object" &&
-            "array" in variantSchema &&
-            !("len" in variantSchema.array)
-          ) {
-            const innerType = variantSchema.array.type
-            if (typeof innerType === "string") {
-              const tempSchema = new BorshSchema(variantSchema, innerType)
-              return { [variantName]: tempSchema.convertToTypedArrays(variantValue, variantSchema) }
-            }
-          }
-          // For other types, just process normally
-          return { [variantName]: this.convertToTypedArrays(variantValue, variantSchema) }
-        }
-      }
-    }
-
-    // Return unchanged for primitive types or unhandled cases
-    return value
+    const result = thirdPartyDeserialize(this.schema, buffer)
+    return this.visitor.visit(
+      result,
+      this.schema,
+      this._typedArrayType ? { typedArrayType: this._typedArrayType } : undefined,
+    ) as T
   }
 }
 
