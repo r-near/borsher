@@ -21,8 +21,10 @@ const userSchema = b.Struct({
   balance: b.u128(),
 });
 
-// TypeScript automatically infers input types!
-const user = {
+// Infer the static TypeScript type from the schema
+type User = b.infer<typeof userSchema>;
+
+const user: User = {
   name: "Alice",
   age: 25,
   balance: 1000000n,
