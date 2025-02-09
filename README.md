@@ -12,7 +12,7 @@ A TypeScript-first [Borsh](https://borsh.io) serialization library with automati
 ## Quick Start
 
 ```ts
-import { BorshSchema, borshSerialize } from "borsher";
+import { BorshSchema } from "borsher";
 
 // Define your schema with automatic type inference
 const userSchema = BorshSchema.Struct({
@@ -21,17 +21,16 @@ const userSchema = BorshSchema.Struct({
   balance: BorshSchema.u128,
 });
 
-// TypeScript automatically infers the correct types!
+// TypeScript automatically infers input types!
 const user = {
   name: "Alice",
   age: 25,
   balance: "1000000", // Flexible input: accepts string/number for bigint
 };
 
-// Serialize and deserialize with type safety
-const buffer = borshSerialize(userSchema, user);
-const decoded = borshDeserialize(userSchema, buffer);
-// decoded.balance is strictly typed as bigint
+// Type-safe serialization and deserialization
+const buffer = userSchema.serialize(user); // Type error if user doesn't match schema
+const decoded = userSchema.deserialize(buffer); // decoded.balance is strictly typed as bigint
 ```
 
 ## Installation
@@ -53,13 +52,39 @@ const userSchema = BorshSchema.Struct({
   balances: BorshSchema.HashMap(BorshSchema.String, BorshSchema.u128),
 });
 
-// Input type allows flexible types
-type UserInput = InferInput<typeof userSchema>;
-//   ^? { name: string; balances: Map<string, bigint | string | number> }
+// Input types are automatically inferred when using schema.serialize()
+const user = {
+  name: "alice",
+  balances: new Map([
+    ["sol", "1000000"], // Can use string for convenience
+    //["eth", 2000000n], // Or native bigint
+  ]),
+};
+userSchema.serialize(user); // Type-checked at compile time!
 
-// Output type is strictly typed
+// Output types are automatically inferred when using schema.deserialize()
+const decoded = userSchema.deserialize(buffer);
+decoded.balances.get("sol"); // Always bigint after deserialization
+
+// You can also explicitly get the types using InferInput/InferOutput
+type UserInput = InferInput<typeof userSchema>;
+//   ^? { name: string; balances: Map<string, string | bigint> }
+
 type UserOutput = InferOutput<typeof userSchema>;
 //   ^? { name: string; balances: Map<string, bigint> }
+```
+
+Here's a simpler example showing the input/output type difference:
+
+```ts
+const schema = BorshSchema.u128;
+
+const value = "1000000"; // Can use string
+// const value = 1000000; // Or number
+// const value = 1000000n; // Or bigint
+
+const buffer = schema.serialize(value);
+const decoded = schema.deserialize(buffer); // Always returns bigint
 ```
 
 ## Supported Types
@@ -175,4 +200,16 @@ const gameStateSchema = BorshSchema.Struct({
     }),
   }),
 });
+```
+
+## Legacy API
+
+For compatibility with existing code, Borsher also provides standalone serialization functions. These maintain the same type safety as the schema methods:
+
+```ts
+import { borshSerialize, borshDeserialize } from "borsher";
+
+// These functions are type-safe but schema.serialize() is preferred
+const buffer = borshSerialize(userSchema, user);
+const decoded = borshDeserialize(userSchema, buffer);
 ```
