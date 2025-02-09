@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { type Schema, deserialize, serialize } from 'borsh';
 
 // Helper types to extract input/output, returning unknown if not a BorshSchema

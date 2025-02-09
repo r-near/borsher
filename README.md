@@ -134,8 +134,8 @@ const buffer = borshSerialize(schema, value);
 // HashMap example
 const schema = BorshSchema.HashMap(BorshSchema.String, BorshSchema.u128);
 const balances = new Map([
-  ["alice", "1000000"],
-  ["bob", "2000000"],
+  ["alice", 1000000n],
+  ["bob", 2000000n],
 ]);
 const buffer = borshSerialize(schema, balances);
 ```
