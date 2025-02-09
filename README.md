@@ -70,7 +70,7 @@ type UserOutput = InferOutput<typeof userSchema>;
 
 - Unsigned integers: `u8`, `u16`, `u32`, `u64`, `u128`
 - Signed integers: `i8`, `i16`, `i32`, `i64`, `i128`
-- Floating-point: `f32`, `f64`
+- Floating point: `f32`, `f64`
 
 ```ts
 const n: number = 100;
@@ -98,10 +98,10 @@ const value: string | null = "hello world";
 const buffer = borshSerialize(schema, value);
 ```
 
-#### Collectoins
+#### Collections
 
 - `Array`: Fixed-length arrays
-- `Vec`: Dynamic-length arrays
+- `Vec`: Dynamic-length vectors
 - `HashSet`: Unique collections
 - `HashMap`: Key-value collections
 
