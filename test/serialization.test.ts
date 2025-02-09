@@ -1,5 +1,5 @@
-import { describe, test, expect } from "vitest"
-import { b, BorshSchema } from "../src"
+import { describe, expect, test } from "vitest"
+import { BorshSchema, b } from "../src"
 
 describe("primitive types", () => {
   test("string serialization", () => {

@@ -13,7 +13,7 @@
 		"build": "tsc",
 		"test": "vitest",
 		"lint": "biome check --write .",
-		"check": "tsc --noEmit",
+		"typecheck": "tsc --noEmit",
 		"prepublishOnly": "pnpm build",
 		"lefthook": "lefthook install"
 	},

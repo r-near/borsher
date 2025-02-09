@@ -1,5 +1,5 @@
+import { assert, describe, expect, test } from "vitest"
 import { BorshSchema } from "../src/schema"
-import { describe, expect, test, assert } from "vitest"
 
 describe("Vec type serialization", () => {
   // Helper function to test serialization roundtrip
